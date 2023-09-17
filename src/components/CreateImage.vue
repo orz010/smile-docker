@@ -15,50 +15,17 @@
       </el-form-item>
       <el-form-item v-if="(form.create_type === 1)" prop="image_type" label="镜像类型" required>
         <el-select v-model="form.image_type" placeholder="请选择镜像类型">
-          <el-option label="Nginx" value="Nginx"></el-option>
-          <el-option label="MySQL" value="MySQL"></el-option>
-          <el-option label="Redis" value="Redis"></el-option>
-          <el-option label="WordPress" value="WordPress"></el-option>
+          <el-option label="Nginx" value="nginx"></el-option>
+          <el-option label="MySQL" value="mysql"></el-option>
+          <el-option label="Redis" value="redis"></el-option>
+          <el-option label="WordPress" value="wordpress"></el-option>
         </el-select>
       </el-form-item>
       <el-form-item v-if="(form.create_type === 2)" label="Dockerfile文件" required>
-        <el-upload class="upload"
-                 ref="upload"
-                 action="string"
-                 :limit=1
-                 :file-list="dockerfileList"	
-                 :auto-upload="false"	
-                 :http-request="uploadFile"	
-                 :on-change="handleChange"	
-                 :on-preview="handlePreview"
-                 :on-remove="handleRemove">	
-        <el-button slot="trigger"
-                   size="small"
-                   type="primary">点击上传</el-button>
-        </el-upload>
+        <input type="file" @change="handleFileUpload">
       </el-form-item>
-      <el-form-item v-if="(form.create_type === 3)" label="镜像文件" required>
-        <el-upload class="upload"
-                 ref="upload"
-                 action="string"
-                 :limit=1
-                 :file-list="imagefileList"
-                 :auto-upload="false"
-                 :http-request="uploadFile"		
-                 :on-change="handleChange"	
-                 :on-preview="handlePreview"	
-                 :on-remove="handleRemove">	
-        <el-button slot="trigger"
-                   size="small"
-                   type="primary">点击上传</el-button>
-        </el-upload>
-      </el-form-item>
-      <el-form-item v-if="(form.create_type === 4)" label="仓库地址" prop="repo" required>
+      <el-form-item v-if="(form.create_type === 3)" label="仓库地址" prop="repo" required>
         <el-input v-model="form.repo"></el-input>
-      </el-form-item>
-      
-      <el-form-item label="名称" prop="name" required>
-        <el-input v-model="form.name"></el-input>
       </el-form-item>
       
       <el-form-item label="Tag" prop="tag" required>
@@ -81,15 +48,11 @@ export default {
   name: "createUserView",
   data() {
     return {
-      dockerfileList:[],
-      imagefileList:[],
-      is_reload:0,
-      formData:{},
+      selectedFile: '',
       form: {
         create_type: '',
         image_type: '',
         repo: '',
-        name: '',
         tag: '',
       },
       options: [{
@@ -98,12 +61,6 @@ export default {
       }, {
         value: 2,
         label: '上传Dockerfile'
-      }, {
-        value: 3,
-        label: '上传镜像'
-      }, {
-        value: 4,
-        label: '从公共仓库拉取'
       }],
       rules:{
         create_type: [
@@ -122,62 +79,31 @@ export default {
     onSubmit() {
       let _this = this;
       console.log(this.form);
-      console.log(this.dockerfileList)
-      console.log(this.imagefileList)
+      console.log(this.selectedFile)
       let formData = new FormData();
-      formData.append('create_type', this.form.create_type)
-      if (this.create_type === 1){
-        formData.append('image_type', this.form.image_type)
-      }else if (this.create_type === 2){
-        formData.append('Dockerfile', this.dockerfileList[0].raw)
-      }else if (this.create_type === 3){
-        formData.append('Imagefile', this.imagefileList[0].raw)
-      }else if (this.create_type === 4){
-        formData.append('repo', this.form.repo)
+      if (this.form.create_type === 1){
+        formData.append('name', this.form.image_type)
+        formData.append('tags', this.form.tag)
+        axios.post(`${this.$baseUrl}image/pull_image/`, formData)
+      }else if (this.form.create_type === 2){
+        formData.append('dockerfile', this.selectedFile)
+        formData.append('tags', this.form.tag)        
+        axios.post(`${this.$baseUrl}image/build_image/`, formData)
+      }else if (this.form.create_type === 3){
+        formData.append('repository', this.form.repo)
+        formData.append('tags', this.form.tag)        
+        axios.post(`${this.$baseUrl}image/pull_image_repository/`, formData)
       }
-
-      axios.post(`${this.$baseUrl}create_image`, formData)
-          .then(response => {
-            if (response.data) {
-              console.log(response.data);
-              if(response.data.msg === '创建用户成功'){
-                _this.$message.success(response.data.msg);
-                _this.is_reload = 1;
-              }
-              else{
-                _this.$message.warning(response.data.msg);
-              }
-            }
-
-          })
-
+      this.$message.success('正在创建，请稍候...')
       setTimeout( function() {
-        if(_this.is_reload === 1)
           _this.$router.go(-1);
       }, 500 );
-
-      //this.$router.go(-1);
-
     },
     cancel(){
       this.$router.go(-1);
     },
-    handleChange (file, fileList) {
-      this.fileList = fileList;
-      // console.log(this.fileList, "sb");
-    },
-    //自定义上传文件
-    uploadFile (file) {
-      this.formData.append("file", file.file);
-      // console.log(file.file, "sb2");
-    },
-    //删除文件
-    handleRemove (file, fileList) {
-      console.log(file, fileList);
-    },
-    // 点击文件
-    handlePreview (file) {
-      console.log(file);
+    handleFileUpload(event) {
+      this.selectedFile = event.target.files[0];
     },
   }
 }

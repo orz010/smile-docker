@@ -10,11 +10,11 @@
         @close="handleClose"
       >
         <el-menu-item index="/image" @click="fetchData">
-          <i class="el-icon-s-home"></i>
+          <i class="el-icon-coin"></i>
           <span>镜像管理</span>
         </el-menu-item>
         <el-menu-item index="/docker" @click="fetchData">
-          <i class="el-icon-user-solid"></i>
+          <i class="el-icon-set-up"></i>
           <span slot="title">工作负载管理</span>
         </el-menu-item>
       </el-menu>
