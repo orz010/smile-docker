@@ -22,7 +22,7 @@
             <el-button @click="handleSearch" icon="el-icon-search" circle></el-button>
           </el-col>
           <el-col :span="2" style="min-height: 20px">
-            <AddUserButton></AddUserButton>
+            <AddDockerButton></AddDockerButton>
           </el-col>
         </el-row>
         <el-row>
@@ -31,31 +31,32 @@
               :data="clientList.slice((currentPage-1)*pageSize,currentPage*pageSize)"
               :row-class-name="tableRowClassName">
             <el-table-column
-                prop="docker_id"
+                prop="containerId"
                 label="ID"
             >
             </el-table-column>
             <el-table-column
-                prop="docker_name"
+                prop="name"
                 label="名称"
                 >
             </el-table-column>
             <el-table-column
-                prop="image_label"
+                prop="image"
                 label="镜像"
                 >
             </el-table-column>
             <el-table-column
-                prop="docker_port"
+                prop="containerPort"
                 label="端口号"
                 >
             </el-table-column>
-            <el-table-column>
+            <el-table-column
+                min-width="100px"
+                >
               <template slot-scope="scope">
-                <el-button type="text" icon="el-icon-edit" @click="tickoff(scope.row)">启动</el-button>
-                &nbsp;
-                <el-button type="text" icon="el-icon-edit" @click="stop(scope.row)">停止</el-button>
-                &nbsp;
+                <el-button type="text" icon="el-icon-video-play" @click="tickoff(scope.row)">启动</el-button>
+                <el-button type="text" icon="el-icon-video-pause" @click="stop(scope.row)">停止</el-button>
+                <el-button type="text" icon="el-icon-chat-dot-round" @click="toclient(scope.row)">详情</el-button>
                 <el-button type="text" icon="el-icon-delete" slot="reference" @click="deleteClient(scope.row)">删除</el-button>
               </template>
             </el-table-column>
@@ -70,18 +71,25 @@
                          :total="clientList.length">
           </el-pagination>
         </el-row>
-      </el-col>
+      </el-col><el-dialog
+  title="详情"
+  :visible.sync="dialogVisible"
+  width="30%">
+  <div style="font-size: 20px">ip: {{this.ip}}</div><br>
+  <div style="font-size: 20px">port: {{this.nodePort}}</div>
+</el-dialog>
     </div>
+    
 </template>
 
 <script>
 
 import axios from "axios";
-import AddUserButton from "@/components/AddUserButton";
+import AddDockerButton from "@/components/AddDockerButton";
 
 export default {
   name: "administrator_all_client",
-  components: {AddUserButton},
+  components: {AddDockerButton},
   data(){
     return {
       search:'',
@@ -90,72 +98,26 @@ export default {
       total: 20, // 总条数
       pageSize: 7, // 每页的数据条数
       direction: 'rtl',
-      clientList: [
-          {
-        identity: 1,
-        user_id:'',
-        company: '软过2',
-        juridical_person: '一个常见的名字',
-        name: '李华',
-        phone: '13273329706',
-      }, {
-        user_id:'',
-        company: '软过3',
-        juridical_person: '一个常见的名字',
-        name: '李华',
-        phone: '13273329706',
-      }, {
-        user_id:'',
-        company: '软过4',
-        juridical_person: '一个常见的名字',
-        name: '李华',
-        phone: '13273329706',
-      }, {
-        user_id:'',
-        company: '软过5',
-        juridical_person: '一个常见的名字',
-        name: '李华',
-        phone: '13273329706',
-      }
-      ]
-
+      clientList: [],
+      ip: '10.251.255.167',
+      nodePort: '',
+      dialogVisible: false,
     }
   },
   created() {
-    // this.getClient();
+    this.handleSearch();
   },
   methods:{
-    getClient(){
-      //var i=0;
-      let _this = this;
-      this.clientList.length=0;
-      axios.post(this.$baseUrl+'user/all_client').then(
-        res => {
-          _this.clientList= res.data.worker;
-          /*for(i = 0; i<res.data.num; i++){
-            this.clientList.push({
-              user_id: res.data.clientList[i].user_id,
-              company: res.data.clientList[i].company,
-              juridical_person: res.data.clientList[i].juridical_person,
-              name: res.data.clientList[i].name,
-              phone: res.data.clientList[i].phone,
-            })
-          }*/
-        }
-      )
-    },
     deleteClient(client){
-      let formData = new FormData;
-      console.log(client);
-      formData.append("user_id", client.user_id);
-      axios.post(this.$baseUrl+'user/delete_user',
-          formData
-      ).then(
-          res =>{
-            this.$message.success(res.data.msg);
-            this.getClient();
-          }
-      )
+      let formData = new FormData();
+      formData.append("name",client.name);
+      formData.append("namespace",client.namespace);
+      console.log(client.name + client.namespace)
+      axios.post(`${this.$baseUrl}deployment/delete_deployment/`, formData)
+        .then(response => {
+          this.$message.success('删除成功')
+          this.handleSearch()
+        })
     },
     Message_notification(done) {
       this.$confirm('确认关闭？')
@@ -179,41 +141,47 @@ export default {
       return '';
     },
     toclient(client){
-      localStorage.setItem("client_company_name", client.company_name);
-      localStorage.setItem("client_user_id", client.user_id);
-      localStorage.setItem("client_legal_entity_name", client.legal_entity_name);
-      localStorage.setItem("client_contact_person", client.contact_person);
-      localStorage.setItem("client_contact_phone", client.contact_phone);
-      //localStorage.setItem("client_company", client.identity);
-      // this.$router.push('/clientdetail');
-      let routeData = this.$router.resolve({ path: '/clientdetail'});
-      window.open(routeData.href, '_blank');
+      for(var i=0; i<this.clientList.length; i++){
+        if(this.clientList[i].name === client.name){
+          this.nodePort = this.clientList[i].nodePort
+          break
+        }
+      }
+      this.dialogVisible = true
     },
-    modify_client(client){
-      console.log(client)
+    tickoff(client){
+      let formData = new FormData()
+      formData.append('name', client.name)
+      axios.post(`${this.$baseUrl}deployment/run_deployment/`, formData)
+        .then(response => {
+          if (response.data) {
+            console.log(response.data);
+            this.$message.success('启动成功')
+          }
+        })  
+    },
+    stop(client){
+      let formData = new FormData()
+      formData.append('name', client.name)
+      axios.post(`${this.$baseUrl}deployment/stop_deployment/`, formData)
+        .then(response => {
+          if (response.data) {
+            console.log(response.data);
+            this.$message.success('停止成功')
+          }
+        })  
     },
     handleSearch(){
       console.log(this.search);
       let _this = this;
       console.log("search!");
       let formData = new FormData();
-      formData.append("contact_person",this.search);
-      axios.post(`${this.$baseUrl}user/search_user`, formData)
+      formData.append("search",this.search);
+      axios.post(`${this.$baseUrl}deployment/list_deployments/`, formData)
           .then(response => {
             if (response.data) {
               console.log(response.data);
-              if(response.data.errno === 0)
-              {
-                if(this.search !== '')
-                  _this.$message.success(response.data.msg);
-                _this.clientList=response.data.worker;
-                _this.currentPage = 1;
-              }
-              else{
-                _this.$message.warning(response.data.msg);
-                _this.clientList=[];
-                _this.currentPage = 1;
-              }
+              _this.clientList=response.data;
             }
           })
     },
